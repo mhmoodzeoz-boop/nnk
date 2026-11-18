@@ -12,8 +12,11 @@
             background-color: var(--bg-color); color: var(--text-color); font-family: 'Rajdhani', sans-serif;
             min-height: 100vh; overflow-x: hidden; position: relative;
         }
-        /* Particles Background */
-        #particles-js { position: fixed; width: 100%; height: 100%; top: 0; left: 0; z-index: -1; background: radial-gradient(circle at 50% 0%, rgba(139, 0, 0, 0.15) 0%, transparent 70%); }
+        
+        /* Canvas for Mouse Fire */
+        #fireCanvas {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none;
+        }
 
         /* Loading Animation */
         #loadingOverlay {
@@ -27,7 +30,7 @@
         #loadingOverlay.hidden { opacity: 0; pointer-events: none; }
 
         /* Header */
-        header { display: flex; flex-direction: column; align-items: center; padding: 40px 20px 20px; text-align: center; position: relative; }
+        header { display: flex; flex-direction: column; align-items: center; padding: 40px 20px 20px; text-align: center; position: relative; z-index: 2; }
         .logo-container { position: relative; width: 120px; height: 120px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
         .logo-ring { position: absolute; border-radius: 50%; border: 2px solid transparent; animation: pulseRing 3s infinite ease-in-out; }
         .ring-1 { width: 100%; height: 100%; border-top-color: var(--primary-red); border-bottom-color: var(--primary-red); animation-duration: 4s; }
@@ -40,7 +43,7 @@
         p.subtitle { color: #888; font-size: 1rem; margin-top: 10px; letter-spacing: 1px; }
 
         /* Filters */
-        .filters-container { max-width: 1200px; margin: 20px auto 0; padding: 0 20px; display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; }
+        .filters-container { max-width: 1200px; margin: 20px auto 0; padding: 0 20px; display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; position: relative; z-index: 2; }
         .filters-container input, .filters-container select {
             padding: 12px 20px; background: rgba(0,0,0,0.8); border: 1px solid #333; color: white;
             border-radius: 5px; font-family: 'Rajdhani', sans-serif; font-size: 1rem; outline: none;
@@ -50,7 +53,7 @@
         .filters-container select { max-width: 200px; cursor: pointer; }
 
         /* Grid */
-        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; position: relative; z-index: 2; }
         .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 25px; margin-top: 20px; }
         .product-card {
             background: var(--card-bg); border: 1px solid #222; border-radius: 12px; padding: 20px;
@@ -114,8 +117,8 @@
         <div class="loader-text">TROUBLE MAKERS</div>
     </div>
 
-    <!-- Particles -->
-    <div id="particles-js"></div>
+    <!-- Canvas for Fire Effect -->
+    <canvas id="fireCanvas"></canvas>
 
     <header>
         <div class="logo-container">
@@ -145,29 +148,76 @@
 
     <div id="toast" class="toast"></div>
 
-    <!-- Particles.js Library -->
-    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
     <script>
-        // Initialize Particles
-        particlesJS("particles-js", {
-            "particles": {
-                "number": { "value": 60, "density": { "enable": true, "value_area": 800 } },
-                "color": { "value": "#ff1a1a" },
-                "shape": { "type": "circle" },
-                "opacity": { "value": 0.3, "random": false, "anim": { "enable": false } },
-                "size": { "value": 3, "random": true, "anim": { "enable": false } },
-                "line_linked": { "enable": true, "distance": 150, "color": "#8b0000", "opacity": 0.2, "width": 1 },
-                "move": { "enable": true, "speed": 2, "direction": "none", "random": false, "straight": false, "out_mode": "out", "bounce": false }
-            },
-            "interactivity": {
-                "detect_on": "canvas",
-                "events": { "onhover": { "enable": true, "mode": "grab" }, "onclick": { "enable": true, "mode": "push" }, "resize": true },
-                "modes": { "grab": { "distance": 140, "line_linked": { "opacity": 0.5 } }, "push": { "particles_nb": 4 } }
-            },
-            "retina_detect": true
+        // === Mouse Fire Effect ===
+        const canvas = document.getElementById('fireCanvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        
+        // Resize canvas
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Particle class
+        class Particle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.size = Math.random() * 4 + 1; // Size 1-5
+                this.speedX = (Math.random() - 0.5) * 2;
+                this.speedY = (Math.random() - 0.5) * 2 - 1; // Move slightly up
+                this.color = `hsl(${Math.random() * 40}, 100%, 50%)`; // Red-Orange-Yellow
+                this.opacity = 1;
+                this.decay = Math.random() * 0.02 + 0.015;
+            }
+
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                this.opacity -= this.decay;
+                this.size *= 0.98;
+            }
+
+            draw() {
+                ctx.globalAlpha = this.opacity;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        // Mouse move listener
+        window.addEventListener('mousemove', (e) => {
+            for (let i = 0; i < 5; i++) { // Create 5 particles per move
+                particles.push(new Particle(e.clientX, e.clientY));
+            }
         });
 
-        let allProducts = []; // Store all products for filtering
+        // Animation loop
+        function animateFire() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            for (let i = 0; i < particles.length; i++) {
+                particles[i].update();
+                particles[i].draw();
+                
+                if (particles[i].opacity <= 0) {
+                    particles.splice(i, 1);
+                    i--;
+                }
+            }
+            requestAnimationFrame(animateFire);
+        }
+        animateFire();
+        // === End Mouse Fire Effect ===
+
+        let allProducts = []; 
 
         function showToast(message, type = 'success') {
             const toast = document.getElementById('toast');
@@ -176,7 +226,6 @@
             setTimeout(() => { toast.className = 'toast'; }, 3000);
         }
 
-        // Determine Category from Name
         function getCategory(name) {
             const n = name.toUpperCase();
             if (n.includes('ASUS')) return 'ASUS';
@@ -218,10 +267,9 @@
             }
 
             products.forEach(product => {
-                const isSoldOut = product.isSoldOut || false; // Check if sold out
+                const isSoldOut = product.isSoldOut || false;
                 const statusClass = isSoldOut ? 'status-sold' : 'status-available';
                 const statusText = isSoldOut ? 'SOLD OUT' : 'AVAILABLE';
-                const category = product.category || getCategory(product.name);
 
                 const card = document.createElement('div');
                 card.className = 'product-card';
