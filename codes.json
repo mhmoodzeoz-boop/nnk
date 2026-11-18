@@ -1,3 +1,13 @@
 {
-  "password": "28452845"
+  "password": "28452845",
+  "products": {
+    "mwmr43ahwf71": {
+      "id": "mwmr43ahwf71",
+      "name": "as",
+      "description": "dd",
+      "fileUrl": "https://raw.githubusercontent.com/mhmoodzeoz-boop/nnk/main/files/1795044439923-logo.png",
+      "code": "815BA8ER6WPDK4V1BAW9",
+      "createdAt": "2026-11-18T23:27:21.257Z"
+    }
+  }
 }
