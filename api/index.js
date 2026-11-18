@@ -20,7 +20,7 @@ export default async function handler(req, res) {
 
     const codesUrl = `${GITHUB_API(owner, repo, 'codes.json')}?ref=${branch}`;
 
-    // دالة مساعدة لجلب قاعدة البيانات
+    // Helper: Get DB
     async function getDB() {
         const getRes = await fetch(codesUrl, {
             headers: { Authorization: `Bearer ${token}`, 'User-Agent': 'Vercel-App' }
@@ -31,7 +31,7 @@ export default async function handler(req, res) {
         return { db, sha: fileData.sha };
     }
 
-    // دالة مساعدة لتحديث قاعدة البيانات
+    // Helper: Update DB
     async function updateDB(db, sha, message) {
         const updateRes = await fetch(GITHUB_API(owner, repo, 'codes.json'), {
             method: 'PUT',
@@ -48,6 +48,31 @@ export default async function handler(req, res) {
             })
         });
         if (!updateRes.ok) throw new Error('GitHub write failed');
+    }
+
+    // Helper: Upload File to GitHub
+    async function uploadFileToGitHub(fileName, base64Content) {
+        const filePath = `files/${Date.now()}-${fileName}`;
+        const uploadUrl = GITHUB_API(owner, repo, filePath);
+        
+        const uploadRes = await fetch(uploadUrl, {
+            method: 'PUT',
+            headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+                'User-Agent': 'Vercel-App'
+            },
+            body: JSON.stringify({
+                message: `Upload file: ${fileName}`,
+                content: base64Content,
+                branch: branch
+            })
+        });
+        
+        if (!uploadRes.ok) throw new Error('Failed to upload file to GitHub');
+        const data = await uploadRes.json();
+        // Raw download link
+        return `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${filePath}`;
     }
 
     // === 1. جلب المنتجات (للعميل والأدمن) ===
@@ -98,14 +123,23 @@ export default async function handler(req, res) {
 
     // === 4. إضافة منتج (للأدمن) ===
     if (req.method === 'POST' && req.body.action === 'add-product') {
-        const { adminPassword, name, description, fileUrl } = req.body;
+        const { adminPassword, name, description, fileUrl, fileData, fileName } = req.body;
 
         try {
             const { db, sha } = await getDB();
             const storedPass = db.password || defaultPass;
             if (adminPassword !== storedPass) return res.status(401).json({ error: 'Unauthorized' });
 
-            if (!name || !fileUrl) return res.status(400).json({ error: 'Name and URL are required' });
+            if (!name) return res.status(400).json({ error: 'Name is required' });
+
+            let finalFileUrl = fileUrl;
+
+            // لو فيه ملف مرفوع، نرفعه على جيت هب
+            if (fileData && fileName) {
+                finalFileUrl = await uploadFileToGitHub(fileName, fileData);
+            }
+
+            if (!finalFileUrl) return res.status(400).json({ error: 'File URL or File is required' });
 
             // توليد كود 20 حرف/رقم
             const code = Array.from({length: 20}, () => Math.random().toString(36)[2]).join('').toUpperCase();
@@ -116,7 +150,7 @@ export default async function handler(req, res) {
                 id: productId,
                 name,
                 description,
-                fileUrl,
+                fileUrl: finalFileUrl,
                 code,
                 createdAt: new Date().toISOString()
             };
@@ -124,27 +158,4 @@ export default async function handler(req, res) {
             await updateDB(db, sha, `Add product: ${name} (Code: ${code})`);
             return res.status(200).json({ success: true, code, productId });
         } catch (error) {
-            return res.status(500).json({ error: 'Internal server error' });
-        }
-    }
-
-    // === 5. تغيير الباسورد (للأدمن) ===
-    if (req.method === 'POST' && req.body.action === 'change-password') {
-        const { adminPassword, newPassword } = req.body;
-
-        try {
-            const { db, sha } = await getDB();
-            const storedPass = db.password || defaultPass;
-            if (adminPassword !== storedPass) return res.status(401).json({ error: 'Unauthorized' });
-            if (!newPassword || newPassword.length < 4) return res.status(400).json({ error: 'Password too short' });
-
-            db.password = newPassword;
-            await updateDB(db, sha, `Password changed`);
-            return res.status(200).json({ success: true });
-        } catch (error) {
-            return res.status(500).json({ error: 'Internal server error' });
-        }
-    }
-
-    return res.status(405).json({ error: 'Method not allowed' });
-}
+            return res.status(500).json({ error: 'Internal server error: ' +
