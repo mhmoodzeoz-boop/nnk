@@ -158,4 +158,27 @@ export default async function handler(req, res) {
             await updateDB(db, sha, `Add product: ${name} (Code: ${code})`);
             return res.status(200).json({ success: true, code, productId });
         } catch (error) {
-            return res.status(500).json({ error: 'Internal server error: ' +
+            return res.status(500).json({ error: 'Internal server error: ' + error.message });
+        }
+    }
+
+    // === 5. تغيير الباسورد (للأدمن) ===
+    if (req.method === 'POST' && req.body.action === 'change-password') {
+        const { adminPassword, newPassword } = req.body;
+
+        try {
+            const { db, sha } = await getDB();
+            const storedPass = db.password || defaultPass;
+            if (adminPassword !== storedPass) return res.status(401).json({ error: 'Unauthorized' });
+            if (!newPassword || newPassword.length < 4) return res.status(400).json({ error: 'Password too short' });
+
+            db.password = newPassword;
+            await updateDB(db, sha, `Password changed`);
+            return res.status(200).json({ success: true });
+        } catch (error) {
+            return res.status(500).json({ error: 'Internal server error' });
+        }
+    }
+
+    return res.status(405).json({ error: 'Method not allowed' });
+}
