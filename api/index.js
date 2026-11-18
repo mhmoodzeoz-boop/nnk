@@ -44,7 +44,28 @@ export default async function handler(req, res) {
         }
     }
 
-    // === 2. إضافة ملف (للأدمن) ===
+    // === 2. تسجيل دخول الأدمن ===
+    if (req.method === 'POST' && req.body.action === 'login') {
+        const { adminPassword } = req.body;
+        try {
+            const getRes = await fetch(codesUrl, {
+                headers: { Authorization: `Bearer ${token}`, 'User-Agent': 'Vercel-App' }
+            });
+            const fileData = await getRes.json();
+            const db = JSON.parse(Buffer.from(fileData.content, 'base64').toString('utf-8'));
+            const storedPass = db.password || defaultPass;
+            
+            if (adminPassword === storedPass) {
+                return res.status(200).json({ success: true });
+            } else {
+                return res.status(401).json({ error: 'Unauthorized' });
+            }
+        } catch (error) {
+            return res.status(500).json({ error: 'Internal server error' });
+        }
+    }
+
+    // === 3. إضافة ملف (للأدمن) ===
     if (req.method === 'POST' && req.body.action === 'add-file') {
         const { adminPassword, fileName, fileUrl } = req.body;
 
@@ -55,7 +76,6 @@ export default async function handler(req, res) {
             const fileData = await getRes.json();
             const db = JSON.parse(Buffer.from(fileData.content, 'base64').toString('utf-8'));
 
-            // التحقق من الباسورد (سواء المخزن أو الافتراضي)
             const storedPass = db.password || defaultPass;
             if (adminPassword !== storedPass) return res.status(401).json({ error: 'Unauthorized' });
 
@@ -63,7 +83,7 @@ export default async function handler(req, res) {
 
             const code = Math.random().toString(36).substring(2, 8).toUpperCase();
             
-            if (!db.files) db.files = {}; // لو الملف قديم
+            if (!db.files) db.files = {};
             db.files[code] = {
                 fileName: fileName,
                 fileUrl: fileUrl,
@@ -92,7 +112,7 @@ export default async function handler(req, res) {
         }
     }
 
-    // === 3. تغيير الباسورد (للأدمن) ===
+    // === 4. تغيير الباسورد (للأدمن) ===
     if (req.method === 'POST' && req.body.action === 'change-password') {
         const { adminPassword, newPassword } = req.body;
 
@@ -105,6 +125,7 @@ export default async function handler(req, res) {
 
             const storedPass = db.password || defaultPass;
             if (adminPassword !== storedPass) return res.status(401).json({ error: 'Unauthorized' });
+            if (!newPassword || newPassword.length < 4) return res.status(400).json({ error: 'Password too short' });
 
             db.password = newPassword;
 
