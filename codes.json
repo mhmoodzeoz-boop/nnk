@@ -1,1 +1,21 @@
-{}
+{
+  "products": {
+    "mwr7savky58u": {
+      "id": "mwr7savky58u",
+      "name": "Bios_demo",
+      "description": "Bios_demo linux",
+      "category": "MSI",
+      "fileUrl": "https://raw.githubusercontent.com/mhmoodzeoz-boop/nnk/main/files/1795314308664-تحليل_رقم_قومي.py",
+      "code": "MAI6D52W0DHFC43BNPGB",
+      "isSoldOut": false,
+      "downloads": 0,
+      "createdAt": "2026-11-22T02:25:09.392Z"
+    }
+  },
+  "activity": [
+    {
+      "timestamp": "2026-11-22T02:25:09.392Z",
+      "description": "Added product: Bios_demo"
+    }
+  ]
+}
